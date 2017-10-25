@@ -16,15 +16,15 @@ sql = """CREATE TABLE `employee` (
 cursor.execute(sql)
 print("Created table Successfull.")
 # disconnect from server
-db.close()
+
 
 # Prepare SQL query to INSERT a record into the database.
-sql = """INSERT INTO EMPLOYEE(FIRST_NAME,
+sql2 = """INSERT INTO EMPLOYEE(FIRST_NAME,
    LAST_NAME, AGE, SEX, INCOME)
    VALUES ('Mac', 'Su', 20, 'M', 5000)"""
 try:
    # Execute the SQL command
-   cursor.execute(sql)
+   cursor.execute(sql2)
    # Commit your changes in the database
    db.commit()
 except:
@@ -33,12 +33,12 @@ except:
 
 ## 再次插入一条记录
 # Prepare SQL query to INSERT a record into the database.
-sql = """INSERT INTO EMPLOYEE(FIRST_NAME,
+sql3 = """INSERT INTO EMPLOYEE(FIRST_NAME,
    LAST_NAME, AGE, SEX, INCOME)
    VALUES ('Kobe', 'Bryant', 40, 'M', 8000)"""
 try:
    # Execute the SQL command
-   cursor.execute(sql)
+   cursor.execute(sql3)
    # Commit your changes in the database
    db.commit()
 except:
