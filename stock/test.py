@@ -1,36 +1,130 @@
-#coding:utf8
-import pandas as pd
+#coding:utf-8
+import re
+from os.path import join
+from os.path import dirname
+from prettytable import PrettyTable
+from sklearn.decomposition import FactorAnalysis
 import numpy as np
-from EmQuantAPI import *
-import datetime
-import csv
-from sqlalchemy import create_engine,types
-import pymysql
+filename = 'abalone.txt'
+req = re.compile(r'\t|,|;|!')#自定义分隔符
+data_file_name = join(dirname(__file__),filename)
+with open(data_file_name) as fr:
+    numberOfLines = len(fr.readlines())
+returnMat = []
+with open(data_file_name) as fr:
+    for line in fr.readlines():
+        line = line.strip()
+        listFromLine = req.split(line)
+        returnMat.append(listFromLine)
+table = PrettyTable(['Key','Value'])
+table.align['Key'] = '1'
+table.add_row(['Sample number:', numberOfLines-1])
+table.add_row(['Feature number:',len(returnMat[0])])
+table.add_row(['feature name:', returnMat[0]])
+table.add_row(['classLabelVector name:',None])
+table.padding_width = 1
+#table.sort_key('Key')
+print (table)
+data = np.array(returnMat[1:], dtype = np.float64)
+fa = FactorAnalysis(n_components = 3)
+fa.fit(data)
+tran_data = fa.transform(data)
+print ('transform data:',tran_data[:10:])
 
 
 
-#data = c.manualactivate("mxq0001", "gm251515")
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import linalg
 
-#OPEN
-#调用登录函数（激活后使用，不需要用户名密码）
-loginResult = c.start()
-#设置下载数据的区间
-tradedate_list = c.tradedates("2017-10-20", "2017-10-26").Dates
-#tradedate_list = ["20071231", "20081231", "20091231", "20101231", "20111231", "20121231", "20131231", "20141231", "20151231","20161231"]
-#这是得到当前的A股代码-----test B股,total num = 100
-secID_list = c.sector("2000033013","2017-06-30").Codes #,"20170630"
-#下载数据
-table = pd.DataFrame(index=secID_list, columns=tradedate_list)#use pandas.DataFrame
-for dt in tradedate_list:
-    data1 = c.css(secID_list, "TOTALSHARE", "ReportDate="+dt)#merge?????
-    data2 = c.css(secID_list, "PE,PEG,PB,EV", "ReportDate="+ dt,"PredictYear=2017")
-    for stk in data2.Codes:  #for-cycle to write data into table
-        table.loc[stk,dt] = data2.Data[stk][1]#The index of dataframe
-table.index.names = ["secID"]# para name
-logoutResult = c.stop()
+from sklearn.decomposition import PCA, FactorAnalysis
+from sklearn.covariance import ShrunkCovariance, LedoitWolf
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import GridSearchCV
 
-#保存为csv文件到桌面
-table.to_csv('test5.csv')
-#保存到mysql数据库
-engine= create_engine("mysql+pymysql://root:112233@localhost/east",echo = False)
-table.to_sql("test5", engine, if_exists="replace", index=True, dtype={'secID':types.CHAR(12)})
+print(__doc__)
+
+# #############################################################################
+# Create the data
+
+n_samples, n_features, rank = 1000, 50, 10
+sigma = 1.
+rng = np.random.RandomState(42)
+U, _, _ = linalg.svd(rng.randn(n_features, n_features))
+X = np.dot(rng.randn(n_samples, rank), U[:, :rank].T)
+
+# Adding homoscedastic noise
+X_homo = X + sigma * rng.randn(n_samples, n_features)
+
+# Adding heteroscedastic noise
+sigmas = sigma * rng.rand(n_features) + sigma / 2.
+X_hetero = X + rng.randn(n_samples, n_features) * sigmas
+
+# #############################################################################
+# Fit the models
+
+n_components = np.arange(0, n_features, 5)  # options for n_components
+
+
+def compute_scores(X):
+    pca = PCA(svd_solver='full')
+    fa = FactorAnalysis()
+
+    pca_scores, fa_scores = [], []
+    for n in n_components:
+        pca.n_components = n
+        fa.n_components = n
+        pca_scores.append(np.mean(cross_val_score(pca, X)))
+        fa_scores.append(np.mean(cross_val_score(fa, X)))
+
+    return pca_scores, fa_scores
+
+
+def shrunk_cov_score(X):
+    shrinkages = np.logspace(-2, 0, 30)
+    cv = GridSearchCV(ShrunkCovariance(), {'shrinkage': shrinkages})
+    return np.mean(cross_val_score(cv.fit(X).best_estimator_, X))
+
+
+def lw_score(X):
+    return np.mean(cross_val_score(LedoitWolf(), X))
+
+
+for X, title in [(X_homo, 'Homoscedastic Noise'),
+                 (X_hetero, 'Heteroscedastic Noise')]:
+    pca_scores, fa_scores = compute_scores(X)
+    n_components_pca = n_components[np.argmax(pca_scores)]
+    n_components_fa = n_components[np.argmax(fa_scores)]
+
+    pca = PCA(svd_solver='full', n_components='mle')
+    pca.fit(X)
+    n_components_pca_mle = pca.n_components_
+
+    print("best n_components by PCA CV = %d" % n_components_pca)
+    print("best n_components by FactorAnalysis CV = %d" % n_components_fa)
+    print("best n_components by PCA MLE = %d" % n_components_pca_mle)
+
+    plt.figure()
+    plt.plot(n_components, pca_scores, 'b', label='PCA scores')
+    plt.plot(n_components, fa_scores, 'r', label='FA scores')
+    plt.axvline(rank, color='g', label='TRUTH: %d' % rank, linestyle='-')
+    plt.axvline(n_components_pca, color='b',
+                label='PCA CV: %d' % n_components_pca, linestyle='--')
+    plt.axvline(n_components_fa, color='r',
+                label='FactorAnalysis CV: %d' % n_components_fa,
+                linestyle='--')
+    plt.axvline(n_components_pca_mle, color='k',
+                label='PCA MLE: %d' % n_components_pca_mle, linestyle='--')
+
+    # compare with other covariance estimators
+    plt.axhline(shrunk_cov_score(X), color='violet',
+                label='Shrunk Covariance MLE', linestyle='-.')
+    plt.axhline(lw_score(X), color='orange',
+                label='LedoitWolf MLE' % n_components_pca_mle, linestyle='-.')
+
+    plt.xlabel('nb of components')
+    plt.ylabel('CV scores')
+    plt.legend(loc='lower right')
+    plt.title(title)
+
+plt.show()
