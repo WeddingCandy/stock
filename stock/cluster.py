@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from scipy import spatial
+from scipy.cluster.hierarchy import linkage ,fcluster,fclusterdata,dendrogram
 from sklearn.cluster import KMeans,estimate_bandwidth
 from sklearn.decomposition import PCA
 from sklearn.decomposition import FactorAnalysis
@@ -19,6 +21,7 @@ cursor.close()
 conn.close()
 
 normalized_df = preprocessing.normalize(df)
+normalized_df_pd = pd.DataFrame(normalized_df)
 
 
 
@@ -60,6 +63,14 @@ axes.plot(nuwMat[:, 0], nuwMat[:, 1],'bo')
 plt.show()
 """
 
+#层次聚类
+matData = df.as_matrix()
+distance = spatial.distance.pdist(matData)
+linkresult = linkage(distance,method='average',metric='euclidean')
+fcluster(linkresult,t=0.99,criterion='inconsistent',depth=2,R=None,monocrit=None)#这个需要先计算linkage，再出结果
+dendrogram(linkresult,get_leaves=False,show_leaf_counts=False)#这个可以绘制出树形图
+
+
 
 
 if __name__ == '__main__':
@@ -82,4 +93,17 @@ if __name__ == '__main__':
             plt.plot(centroids[i][0], centroids[i][1], mark[i], markersize=12)# print centroids[i, 0], centroids[i, 1]
         plt.show()
 
+        """
+        # 简单打印结果
+        r1 = pd.Series(centroids).value_counts()  # 统计各个类别的数目
+        r2 = pd.DataFrame(centroids)  # 找出聚类中心
+        r = pd.concat([r2, r1], axis=1)  # 横向连接(0是纵向), 得到聚类中心对应的类别下的数目
+        r.columns = list(normalized_df_pd.columns) + [u'类别数目']  # 重命名表头
+        print(r)
+        # 详细输出原始数据及其类别
+        r = pd.concat([normalized_df_pd, pd.Series(clf.labels_, index=normalized_df_pd.index)], axis=1)
+        # 详细输出每个样本对应的类别
+        r.columns = list(normalized_df_pd.columns) + [u'聚类类别']  # 重命名表头
+        outputfile = r'C:\Users\Chans\PycharmProjects\stock\data_type.xls'
+        r.to_excel(outputfile)  # 保存结果  """
 
