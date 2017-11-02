@@ -16,6 +16,8 @@ import pymysql
 loginResult = c.start()
 #设置下载数据的区间
 #tradedate_list = c.tradedates("2017-10-20", "2017-10-26").Dates
+
+
 attrlist=["PE" ,"PB","PS"]
 list = ['first']
 tradedate_list = [ "20141231", "20151231","20161231"]
@@ -37,14 +39,16 @@ namelist=[]
 for atrr in attrlist:
     for year in tradedate_list:
         namelist.append(year+atrr)
-
 tables.columns = namelist
 
 
-logoutResult = c.stop()
+
+
+
 
 #保存为csv文件到桌面
-table.to_csv('clustertest.csv')
+tables.to_csv('clustertest.csv')
 #保存到mysql数据库
 engine= create_engine("mysql+pymysql://root:112233@localhost/east",echo = False)
-table.to_sql("clustertest", engine, if_exists="replace", index=True, dtype={'secID':types.CHAR(12)})
+tables.to_sql("clustertest", engine, if_exists="replace", index=True, dtype={'secID':types.CHAR(12)})
+logoutResult = c.stop()

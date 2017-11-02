@@ -4,6 +4,7 @@ from os.path import join
 from os.path import dirname
 from prettytable import PrettyTable
 from sklearn.decomposition import FactorAnalysis
+from sklearn import preprocessing
 import numpy as np
 filename = 'abalone.txt'
 req = re.compile(r'\t|,|;|!')#自定义分隔符
